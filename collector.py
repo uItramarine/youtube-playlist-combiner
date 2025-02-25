@@ -1,77 +1,110 @@
-# import argparse
-import yt_dlp
-import ffmpeg
 import os
+import re
+
+import telebot
+import yt_dlp
+from dotenv import load_dotenv
 
 
-MUSIC_DIR = "../music"
-TEMP_DIR = "./music/.temp"
+class LoggerOutputs:
+    def __init__(self, bot, message):
+        self.bot = bot
+        self.message = message
+
+    # TODO: Add abbility to send name of audio in chat
+    def error(self, msg):
+        notification = f"Аудіо з айді {msg.split(' ')[2]} недоступне."
+        self.bot.send_message(self.message.chat.id, notification)
+        print(msg)
+
+    def warning(self, msg):
+        print(msg)
+
+    def debug(self, msg):
+        print(msg)
 
 
+class CollectorBot:
+    def __init__(self, bot_token, temp_dir="./music"):
+        self.bot = telebot.TeleBot(bot_token)
+        self.temp_dir = temp_dir
+        self.message = None
 
-def links_collector():
-    # Collect links from playlist
-    pass
+        @self.bot.message_handler(commands=["start"])
+        def start(message):
+            # TODO: Change intro text
+            self.bot.send_message(
+                message.chat.id,
+                "Встав посилання на плейлист або на музику яку хочеш скачати з Youtube.",
+            )
 
-def download_audio(audio_urls: list, output_path=TEMP_DIR, format='opus') -> list:
+        @self.bot.message_handler(func=lambda message: True)
+        def echo(message):
+            if self.__check_msg(message.text):
+                self.message = message
+                self.__send_audio(message.text)
+                self.bot.send_message(message.chat.id, "Скачано. 💓")
 
-    #TODO: Check params for future 
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'outtmpl': f"{output_path}/%(title)s.%(ext)s",
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': format,
-            'preferredquality': '192',
-        }],
-    }
+            else:
+                self.bot.send_message(message.chat.id, "Невірний формат посилання.")
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download(audio_urls)
-    
-    return [f"{TEMP_DIR}/{name}" for name in os.listdir(TEMP_DIR)]
-        
-def mix_audio(input_files, output_file='./music/out.opus'):
-    audios = [ffmpeg.input(file).audio for file in input_files]
+    def run(self):
+        print("Бот запущений...")
+        self.bot.infinity_polling()
 
-    concatenated = ffmpeg.concat(*audios, v=0, a=1).node
-    
-    output = ffmpeg.output(concatenated[0], output_file, format="opus", acodec="libopus")
+    def __post_process_hook(self, d):
 
-    ffmpeg.run(output, overwrite_output=True)
+        # TODO: Rewrite in context manager
+        # TODO: Add try except
+        if d["postprocessor"] == "MoveFiles" and d["status"] == "finished":
+            audio_name = os.listdir(self.temp_dir)[0]
+            audio_path = os.path.join(self.temp_dir, audio_name)
 
-    return output_file
+            with open(audio_path, "rb") as audio:
+                self.bot.send_audio(self.message.chat.id, audio)
 
-def convert_to_mp3(input_file, output_file='./music/out.mp3'):
-    try:
-        (
-            ffmpeg.input(input_file)
-            .output(output_file, format="mp3", acodec="libmp3lame", audio_bitrate="192k")
-            .run(overwrite_output=True)
-        )
-        print(f"Conversion successful: {output_file}")
-    except ffmpeg.Error as e:
-        print(f"Error: {e.stderr.decode()}")
+            os.remove(audio_path)
 
+    def __progress_hook(self, d): ...
 
-audio_urls = [
-'https://www.youtube.com/watch?v=DCbvbCbB0fE',
-'https://www.youtube.com/watch?v=dRhY7J1SSXg',
-'https://www.youtube.com/watch?v=7FgEvZu_GcQ',
-'https://www.youtube.com/watch?v=jlEkr-wxLUA',
-'https://www.youtube.com/watch?v=Wlffl6ZVgog',
-'https://www.youtube.com/watch?v=raDJTzGybj4',
-'https://www.youtube.com/watch?v=uOJSE6mqkQI',
-'https://www.youtube.com/watch?v=jL-GDY2sECA',
-'https://www.youtube.com/watch?v=9TdWXq7MfHw',
-'https://www.youtube.com/watch?v=MIySgVOzdto',
-'https://www.youtube.com/watch?v=PhtrSxNmbKI'
-]
+    def __send_audio(self, url: list):
+        ydl_opts = {
+            "logger": LoggerOutputs(self.bot, self.message),
+            "ignoreerrors": True,
+            "outtmpl": f"{self.temp_dir}/%(title)s.%(ext)s",
+            "postprocessor_hooks": [self.__post_process_hook],
+            "extract_audio": True,
+            "format": "bestaudio",
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": "192",
+                }
+            ],
+        }
 
-tracks = download_audio(audio_urls)
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download(url)
 
-mix = mix_audio(tracks)
-
-convert_to_mp3(mix)
+    def __check_msg(self, url):
+        pattern = r"^(https?\:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$"
+        return bool(re.fullmatch(pattern, url))
 
 
+def main():
+    load_dotenv()
+    bot = CollectorBot(os.getenv("BOT_TOKEN"))
+
+    bot.run()
+
+
+if __name__ == "__main__":
+    main()
+
+
+# 'https://www.youtube.com/watch?v=tLhY1l_dfU4',
+# 'https://www.youtube.com/watch?v=riWtG3NQZ9o',
+# 'https://www.youtube.com/watch?v=b7X2_Sbo4S8',
+
+# https://www.youtube.com/playlist?list=PLmvWwY_qHYFXVL6zzbSqhcuoH_iLNkcDy
