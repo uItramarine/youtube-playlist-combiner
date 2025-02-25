@@ -2,10 +2,9 @@
 Combine all tracks from public playlist into one. 
 
 # Plan
-- Add args
 - Add error chatching
-- Add abbility to convert whole playlist
-- Clean temp files with music
+- Refactoring
+- Add abbility to send music in chanal
 
 
 # Info
