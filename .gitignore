@@ -173,5 +173,5 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-# Folder with music
-music/
+# Temporary folder with music
+.temp-audio/
