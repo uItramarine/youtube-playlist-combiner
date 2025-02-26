@@ -13,6 +13,8 @@ class LoggerOutputs:
 
     # TODO: Add abbility to send name of audio in chat
     # TODO: Add logger and make logs nice and collectable
+    # TODO: Refactor
+
     def error(self, msg):
         notification = f"Аудіо з айді {msg.split(' ')[2]} недоступне."
         self.bot.send_message(self.message.chat.id, notification)
@@ -62,6 +64,7 @@ class CollectorBot:
 
         self.user_dir = None
         self.message = None
+        self.id = None
 
         self.setup_handlers()
 
@@ -69,8 +72,9 @@ class CollectorBot:
         @self.bot.message_handler(commands=["start"])
         def start(message):
             # TODO: Change intro text
+
             self.bot.send_message(
-                message.chat.id,
+                '-1002392484036',
                 "Встав посилання на плейлист або на музику яку хочеш скачати з Youtube.",
             )
 
@@ -78,6 +82,7 @@ class CollectorBot:
         def scrapp_track(message):
             self.message = message
             self.user_dir = os.path.join(self.TEMP_DIR, str(message.chat.id))
+            self.id = message.chat.id
 
             self.bot.send_message(message.chat.id, "Качаю трек... 💓")
 
@@ -87,18 +92,44 @@ class CollectorBot:
         def scrapp_playlist(message):
             self.message = message
             self.user_dir = os.path.join(self.TEMP_DIR, str(message.chat.id))
+            self.id = message.chat.id
 
             self.bot.send_message(message.chat.id, "Качаю плейлист. 💓")
             self.bot.send_message(message.chat.id, "Займе кілька секунд.")
 
+
             self.__playlist_processing(message.text)
+
+
+        @self.bot.message_handler(regexp=self.track_pattern, func=self.__is_alloved, commands=["save"])
+        def scrapp_track_channel(message):
+            print(message)
+            self.message = message
+            self.user_dir = os.path.join(self.TEMP_DIR, str(message.chat.id))
+            self.id = os.getenv("CHAT_ID")
+
+            self.__track_processing(message.text)
+
+
+        # @self.bot.message_handler(regexp=self.playlist_pattern, func=self.__is_alloved, commands=["save"])
+        # def scrapp_playlist_channel(message):
+        #     self.message = message
+        #     self.user_dir = os.path.join(self.TEMP_DIR, str(message.chat.id))
+        #     self.id = os.getenv("CHAT_ID")
+
+        #     self.__playlist_processing(message.text)
 
     def __is_alloved(self, message):
         alloved_users = json.loads(os.getenv("WHITE_LIST"))
-        # TODO Print info for user
-        # TODO Logging save user ids
-        return message.from_user.id in alloved_users
 
+        # TODO Logging save user ids
+        if message.from_user.id in alloved_users:
+            return True
+        
+        print(message.chat.id)
+        self.bot.send_message(message.chat.id, "Ви не в вайт-лісті.")
+        return False
+            
     def run(self):
         # TODO: Change text
         print("Бот запущений...")
@@ -110,7 +141,7 @@ class CollectorBot:
             temp_files = {"stage": meta_data["info_dict"]["filename"]}
 
             with AudioManager(audio_path, temp_files) as a:
-                self.bot.send_audio(self.message.chat.id, a)
+                self.bot.send_audio(self.id, a)
 
     # TODO: Refactoring
     def __track_processing(self, url: str):
@@ -124,6 +155,7 @@ class CollectorBot:
                 track_meta = ydl.extract_info(url, download=False)
         except Exception as e:
             print("Track unavailable.")
+            return
 
         ydl_opts = {
             "logger": LoggerOutputs(self.bot, self.message),
@@ -145,7 +177,8 @@ class CollectorBot:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([track_meta["webpage_url"]])
         except:
-            pass
+            print("Track unavailable.")
+            return
 
     # TODO: Refactoring
     def __playlist_processing(self, url: str):
@@ -159,6 +192,7 @@ class CollectorBot:
                 playlist_meta = ydl.extract_info(url, download=False)
         except Exception as e:
             print("---------------ERROR-----------------")
+            return
 
         ydl_opts = {
             "logger": LoggerOutputs(self.bot, self.message),
@@ -185,7 +219,7 @@ class CollectorBot:
 
 
 def main():
-    load_dotenv()
+    load_dotenv(override=True)
 
     bot = CollectorBot()
     bot.run()
@@ -200,7 +234,3 @@ if __name__ == "__main__":
 # 'https://www.youtube.com/watch?v=b7X2_Sbo4S8',
 # https://www.youtube.com/playlist?list=PLmvWwY_qHYFXVL6zzbSqhcuoH_iLNkcDy
 
-
-# r"^(https?\:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$"
-# ^(https?\:\/\/)?(www\.)?(youtube\.com|music\.youtube\.com)\/playlist\?list=.+$
-#
