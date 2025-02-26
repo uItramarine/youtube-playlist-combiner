@@ -55,8 +55,11 @@ class CollectorBot:
 
     def __init__(self):
         self.bot = telebot.TeleBot(os.getenv("BOT_TOKEN"))
+        self.playlist_pattern = r"^(https?\:\/\/)?(www\.)?(youtube\.com|music\.youtube\.com)\/playlist\?list=.+$"
+        self.track_pattern = (
+            r"^(https?\:\/\/)?(www\.)?(youtube\.com|music\.youtube\.com)\/watch\?v=.+$"
+        )
 
-        self.url_pattern = r"^(https?\:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$"
         self.user_dir = None
         self.message = None
 
@@ -71,13 +74,35 @@ class CollectorBot:
                 "Встав посилання на плейлист або на музику яку хочеш скачати з Youtube.",
             )
 
-        @self.bot.message_handler(regexp=self.url_pattern, func=self.__is_alloved)
-        def scrapp_audio(message):
+        @self.bot.message_handler(regexp=self.track_pattern, func=self.__is_alloved)
+        def scrapp_track(message):
             self.message = message
             self.user_dir = os.path.join(self.TEMP_DIR, str(message.chat.id))
 
-            self.__send_audio(message.text)
-            self.bot.send_message(message.chat.id, "Завершено. 💓")
+            self.bot.send_message(message.chat.id, "Качаю трек... 💓")
+
+            self.__track_processing(message.text)
+
+        @self.bot.message_handler(regexp=self.playlist_pattern, func=self.__is_alloved)
+        def scrapp_playlist(message):
+            self.message = message
+            self.user_dir = os.path.join(self.TEMP_DIR, str(message.chat.id))
+
+            self.bot.send_message(message.chat.id, "Качаю плейлист. 💓")
+            self.bot.send_message(message.chat.id, "Займе кілька секунд.")
+
+            self.__playlist_processing(message.text)
+
+    def __is_alloved(self, message):
+        alloved_users = json.loads(os.getenv("WHITE_LIST"))
+        # TODO Print info for user
+        # TODO Logging save user ids
+        return message.from_user.id in alloved_users
+
+    def run(self):
+        # TODO: Change text
+        print("Бот запущений...")
+        self.bot.infinity_polling()
 
     def __send_hook(self, meta_data):
         if meta_data["_default_template"] == "MoveFiles finished":
@@ -87,7 +112,19 @@ class CollectorBot:
             with AudioManager(audio_path, temp_files) as a:
                 self.bot.send_audio(self.message.chat.id, a)
 
-    def __send_audio(self, url: list):
+    # TODO: Refactoring
+    def __track_processing(self, url: str):
+        ydl_opts = {
+            "quiet": True,
+            "extract_flat": True,
+        }
+
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                track_meta = ydl.extract_info(url, download=False)
+        except Exception as e:
+            print("Track unavailable.")
+
         ydl_opts = {
             "logger": LoggerOutputs(self.bot, self.message),
             # "ignoreerrors": True,
@@ -104,25 +141,47 @@ class CollectorBot:
             ],
         }
 
-        #TODO: Refactor
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download(url)
-        finally:
-            for filename in os.listdir(self.user_dir):
-                file_path = os.path.join(self.user_dir, filename)
-                os.remove(file_path)
+                ydl.download([track_meta["webpage_url"]])
+        except:
+            pass
 
-    def __is_alloved(self, message):
-        alloved_users = json.loads(os.getenv("WHITE_LIST"))
-        # TODO Print info for user
-        # TODO Logging save user ids
-        return message.from_user.id in alloved_users
+    # TODO: Refactoring
+    def __playlist_processing(self, url: str):
+        ydl_opts = {
+            "quiet": True,
+            "extract_flat": True,
+        }
 
-    def run(self):
-        # TODO: Change text
-        print("Бот запущений...")
-        self.bot.infinity_polling()
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                playlist_meta = ydl.extract_info(url, download=False)
+        except Exception as e:
+            print("---------------ERROR-----------------")
+
+        ydl_opts = {
+            "logger": LoggerOutputs(self.bot, self.message),
+            # "ignoreerrors": True,
+            "outtmpl": f"{self.user_dir}/%(title)s.%(ext)s",
+            "postprocessor_hooks": [self.__send_hook],
+            "extract_audio": True,
+            "format": "bestaudio",
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": "192",
+                }
+            ],
+        }
+
+        for el in playlist_meta["entries"]:
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([el["url"]])
+            except:
+                pass
 
 
 def main():
@@ -140,3 +199,8 @@ if __name__ == "__main__":
 # 'https://www.youtube.com/watch?v=riWtG3NQZ9o',
 # 'https://www.youtube.com/watch?v=b7X2_Sbo4S8',
 # https://www.youtube.com/playlist?list=PLmvWwY_qHYFXVL6zzbSqhcuoH_iLNkcDy
+
+
+# r"^(https?\:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$"
+# ^(https?\:\/\/)?(www\.)?(youtube\.com|music\.youtube\.com)\/playlist\?list=.+$
+#
