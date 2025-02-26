@@ -2,13 +2,10 @@
 Combine all tracks from public playlist into one. 
 
 # Plan
-- Add error chatching
-- Refactoring
+- Add error chatching for downloader process
 - Add abbility to send music in chanal
 
 
 # Info
-Might be need to install ffmpeg package
-
-pip install yt-dlp
+Might be need to install ffmpeg package `pip install yt-dlp`
 
