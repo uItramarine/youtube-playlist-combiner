@@ -1,5 +1,6 @@
 import json
 import os
+import re
 
 import telebot
 import yt_dlp
@@ -74,7 +75,7 @@ class CollectorBot:
             # TODO: Change intro text
 
             self.bot.send_message(
-                '-1002392484036',
+                message.chat.id,
                 "Встав посилання на плейлист або на музику яку хочеш скачати з Youtube.",
             )
 
@@ -100,25 +101,36 @@ class CollectorBot:
 
             self.__playlist_processing(message.text)
 
+        @self.bot.message_handler(func=self.__is_alloved, commands=["save"])
+        def scrapp_to_channel(message):
+            link = message.text[6:]
 
-        @self.bot.message_handler(regexp=self.track_pattern, func=self.__is_alloved, commands=["save"])
-        def scrapp_track_channel(message):
-            print(message)
-            self.message = message
-            self.user_dir = os.path.join(self.TEMP_DIR, str(message.chat.id))
-            self.id = os.getenv("CHAT_ID")
+            if self.__is_valid_link(message.text, self.track_pattern):
+                self.__process_link(message, link, self.__track_processing)
+            elif self.__is_valid_link(message.text, self.playlist_pattern):
+                self.__process_link(message, link, self.__playlist_processing, "Качаю плейлист. 💓", "Займе кілька секунд.")
+            else:
+                self.bot.send_message(message.chat.id, "не можу прочитати посилання :(")
 
-            self.__track_processing(message.text)
+    #TODO Rename
+    def __process_link(self, message, link, processing_method, *extra_messages):
+        self.message = message
+        self.user_dir = os.path.join(self.TEMP_DIR, str(message.chat.id))
+        self.id = os.getenv("CHAT_ID")
 
+        for msg in extra_messages:
+            self.bot.send_message(message.chat.id, msg)
+        
+        processing_method(link)
 
-        # @self.bot.message_handler(regexp=self.playlist_pattern, func=self.__is_alloved, commands=["save"])
-        # def scrapp_playlist_channel(message):
-        #     self.message = message
-        #     self.user_dir = os.path.join(self.TEMP_DIR, str(message.chat.id))
-        #     self.id = os.getenv("CHAT_ID")
-
-        #     self.__playlist_processing(message.text)
-
+    #TODO Rename
+    def __is_valid_link(self, message, pattern):
+        args = message.split(maxsplit=1)
+        if len(args) < 2:
+            return False
+        
+        return bool(re.search(pattern, args[1]))
+    
     def __is_alloved(self, message):
         alloved_users = json.loads(os.getenv("WHITE_LIST"))
 
