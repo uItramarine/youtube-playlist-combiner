@@ -3,7 +3,7 @@ Combine all tracks from public playlist into one.
 
 # Plan
 - Add error chatching for downloader process
-- Add abbility to send music in chanal
+- Add documentation about how to use this tool
 
 # Problems
 Function `yt_dlp.YoutubeDL.download(url)` can take a list with links to audio,
