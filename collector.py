@@ -98,7 +98,6 @@ class CollectorBot:
             self.bot.send_message(message.chat.id, "Качаю плейлист. 💓")
             self.bot.send_message(message.chat.id, "Займе кілька секунд.")
 
-
             self.__playlist_processing(message.text)
 
         @self.bot.message_handler(func=self.__is_alloved, commands=["save"])
@@ -108,11 +107,17 @@ class CollectorBot:
             if self.__is_valid_link(message.text, self.track_pattern):
                 self.__process_link(message, link, self.__track_processing)
             elif self.__is_valid_link(message.text, self.playlist_pattern):
-                self.__process_link(message, link, self.__playlist_processing, "Качаю плейлист. 💓", "Займе кілька секунд.")
+                self.__process_link(
+                    message,
+                    link,
+                    self.__playlist_processing,
+                    "Качаю плейлист. 💓",
+                    "Займе кілька секунд.",
+                )
             else:
                 self.bot.send_message(message.chat.id, "не можу прочитати посилання :(")
 
-    #TODO Rename
+    # TODO Rename
     def __process_link(self, message, link, processing_method, *extra_messages):
         self.message = message
         self.user_dir = os.path.join(self.TEMP_DIR, str(message.chat.id))
@@ -120,28 +125,28 @@ class CollectorBot:
 
         for msg in extra_messages:
             self.bot.send_message(message.chat.id, msg)
-        
+
         processing_method(link)
 
-    #TODO Rename
+    # TODO Rename
     def __is_valid_link(self, message, pattern):
         args = message.split(maxsplit=1)
         if len(args) < 2:
             return False
-        
+
         return bool(re.search(pattern, args[1]))
-    
+
     def __is_alloved(self, message):
         alloved_users = json.loads(os.getenv("WHITE_LIST"))
 
         # TODO Logging save user ids
         if message.from_user.id in alloved_users:
             return True
-        
+
         print(message.chat.id)
         self.bot.send_message(message.chat.id, "Ви не в вайт-лісті.")
         return False
-            
+
     def run(self):
         # TODO: Change text
         print("Бот запущений...")
@@ -245,4 +250,3 @@ if __name__ == "__main__":
 # 'https://www.youtube.com/watch?v=riWtG3NQZ9o',
 # 'https://www.youtube.com/watch?v=b7X2_Sbo4S8',
 # https://www.youtube.com/playlist?list=PLmvWwY_qHYFXVL6zzbSqhcuoH_iLNkcDy
-
