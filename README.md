@@ -1,9 +1,9 @@
 # youtube-playlist-combiner
-Combine all tracks from public playlist into one. 
+Data importer to channel
 
 # Plan
-- Add error chatching for downloader process
-- Add documentation about how to use this tool
+- Add error chatching for downloader process (Boss of Gym)
+- Add documentation about how to use this tool (Ez)
 
 # Problems
 Function `yt_dlp.YoutubeDL.download(url)` can take a list with links to audio,
