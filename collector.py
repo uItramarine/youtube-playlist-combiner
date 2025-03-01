@@ -17,15 +17,15 @@ class LoggerOutputs:
     # TODO: Refactor
 
     def error(self, msg):
-        notification = f"Аудіо з айді {msg.split(' ')[2]} недоступне."
-        self.bot.send_message(self.message.chat.id, notification)
         print(msg)
 
     def warning(self, msg):
-        print(msg)
+        # print(msg)
+        pass
 
     def debug(self, msg):
-        print(msg)
+        # print(msg)
+        pass
 
 
 class AudioManager:
@@ -176,7 +176,7 @@ class CollectorBot:
 
         ydl_opts = {
             "logger": LoggerOutputs(self.bot, self.message),
-            # "ignoreerrors": True,
+            "ignoreerrors": True,
             "outtmpl": f"{self.user_dir}/%(title)s.%(ext)s",
             "postprocessor_hooks": [self.__send_hook],
             "extract_audio": True,
@@ -208,12 +208,12 @@ class CollectorBot:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 playlist_meta = ydl.extract_info(url, download=False)
         except Exception as e:
-            print("---------------ERROR-----------------")
+            print("Track unavailable.")
             return
 
         ydl_opts = {
             "logger": LoggerOutputs(self.bot, self.message),
-            # "ignoreerrors": True,
+            "ignoreerrors": True,
             "outtmpl": f"{self.user_dir}/%(title)s.%(ext)s",
             "postprocessor_hooks": [self.__send_hook],
             "extract_audio": True,
@@ -232,7 +232,8 @@ class CollectorBot:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     ydl.download([el["url"]])
             except:
-                pass
+                print("Track unavailable.")
+                return
 
 
 def main():
@@ -245,8 +246,9 @@ def main():
 if __name__ == "__main__":
     main()
 
-
-# 'https://www.youtube.com/watch?v=tLhY1l_dfU4',
-# 'https://www.youtube.com/watch?v=riWtG3NQZ9o',
-# 'https://www.youtube.com/watch?v=b7X2_Sbo4S8',
-# https://www.youtube.com/playlist?list=PLmvWwY_qHYFXVL6zzbSqhcuoH_iLNkcDy
+# Tipical errors
+# ERROR: [youtube] igwUzoCdNCk: Sign in to confirm your age. This video may be inappropriate for some users. Use --cookies-from-browser or --cookies for the authentication. See  https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp  for how to manually pass cookies. Also see  https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies  for tips on effectively exporting YouTube cookies
+# ERROR: [youtube] tLhY1l_dfU4: Video unavailable. This video is not available
+# ERROR: [youtube] riWtG3NQZ9o: Video unavailable. This video is not available
+# ERROR: [youtube] b7X2_Sbo4S8: Video unavailable. This video is not available
+# ERROR: A request to the Telegram API was unsuccessful. Error code: 413. Description: Request Entity Too Large
