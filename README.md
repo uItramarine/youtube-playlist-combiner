@@ -5,6 +5,7 @@ Data importer to channel
 - Add error chatching for downloader process (Boss of Gym)
 - Add documentation about how to use this tool (Ez)
 - Revrite to mkstemp file saving 
+- Add ability to read youtu.be links
 
 # Problems
 Function `yt_dlp.YoutubeDL.download(url)` can take a list with links to audio,
